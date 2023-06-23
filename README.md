@@ -2,6 +2,7 @@
 
 ## Martian's Nuclei Rover
 I made this only for Nuclei output in order to feed into other tools for improving automation with shell scripting during research
+
 OPTION 1: Run script and direct it to the nuclei file within the system
 ```bash
 awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\//) {split($i,a,"/"); print a[3]} else if ($i ~ /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) {print $i}}' nucleifile.txt > output.txt
