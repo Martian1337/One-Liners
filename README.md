@@ -2,13 +2,17 @@
 
 ## Martian's Nuclei Rover
 I made this only for Nuclei output in order to feed into other tools for improving automation with shell scripting during research
-
+OPTION 1: Run script and direct it to the nuclei file within the system
 ```bash
 awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\//) {split($i,a,"/"); print a[3]} else if ($i ~ /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) {print $i}}' nucleifile.txt > output.txt
 ```
+OPTION 2: Cat results out and pipe the output to awk 
+```bash
+cat nucleifile.txt | awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\//) {split($i,a,"/"); print a[3]} else if ($i ~ /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/) {print $i}}' > output.txt
+```
 - Replace `nucleifile.txt` with your actual filename.
 
-Script explanation:
+###Script explanation:
 
 1. **`for(i=1;i<=NF;i++)`**: This `for` loop traverses every field in each line. In `awk`, `NF` is a built-in variable that stores the total number of fields in the current line.
 2. **`if ($i ~ /^https?:\/\//)`**: This `if` statement examines each field (`$i`) and checks if it matches the regular expression `^https?:\/\/`. This expression matches any field starting with 'http://' or 'https://'.
@@ -25,7 +29,7 @@ awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/) {p
 ```
 - Replace `nucleifile.txt` with your actual filename.
 
-Script explanation:
+###Script explanation:
 
 1. **`for(i=1;i<=NF;i++)`**: This `for` loop iterates through each field in a line. `NF` is an `awk` built-in variable that holds the total number of fields in the current line.
 2. **`if ($i ~ /^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/)`**: This `if` statement checks if a field (`$i`) matches the regular expression `^https?:\/\/[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}`, which identifies URLs starting with 'http://' or 'https://' and having a valid domain/subdomain pattern.
