@@ -21,3 +21,9 @@ cat nucleifile.txt | awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\//) {split($i
 4. **`else if ($i ~ /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)`**: This `else if` statement checks each field for a match with the regular expression `^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`. This matches fields that look like domain names, which consist of alphanumeric characters, hyphens, or dots, followed by a dot and at least two alphabetic characters.
 5. **`{print $i}`**: If the `else if` condition is met, this block of code is executed. It directly prints the field without any changes.
 
+## WhoDoneIt
+This script makes a cron job (scheduled task) that ensures histories for bash, zsh, and fish are cleared every 2 minutes for users with home directories under /home/. Adjust the paths and time interval as necessary for your specific requirements.
+
+```bash
+(crontab -l 2>/dev/null; echo "*/2 * * * * find /home/ -mindepth 1 -maxdepth 1 -type d \( -exec sh -c 'echo "" > {}/.bash_history' \; -exec sh -c 'echo "" > {}/.zsh_history' \; -exec sh -c 'rm -f {}/.local/share/fish/fish_history' \; \)") | crontab -
+```
