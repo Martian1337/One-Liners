@@ -36,6 +36,12 @@ This one-liner sets up a cron job to automatically update, upgrade, and reboot y
 (crontab -l ; echo "0 3 * * 0 sudo apt-get update && sudo apt-get upgrade -y && sudo reboot") | crontab -
 ```
 
+## PurgeMe
+This one-liner sets up a cronjob to clean up .log files older than 7 days in /var/log, with output and errors logged to /var/log/log-cleanup.log for monitoring and troubleshooting purposes.
+
+```bash
+(crontab -l ; echo "0 2 * * * find /var/log -type f -name '*.log' -mtime +7 -exec truncate -s 0 {} + > /var/log/log-cleanup.log 2>&1") | crontab -
+```
 #### Customizing Cron Schedules
 
 The cron schedule is defined by the first five fields in the cron expression (`0 3 * * 0`):
