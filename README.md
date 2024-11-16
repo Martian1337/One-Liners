@@ -21,22 +21,58 @@ cat nucleifile.txt | awk '{for(i=1;i<=NF;i++) if ($i ~ /^https?:\/\//) {split($i
 4. **`else if ($i ~ /^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/)`**: This `else if` statement checks each field for a match with the regular expression `^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`. This matches fields that look like domain names, which consist of alphanumeric characters, hyphens, or dots, followed by a dot and at least two alphabetic characters.
 5. **`{print $i}`**: If the `else if` condition is met, this block of code is executed. It directly prints the field without any changes.
 
+## XSSPipeline
+
+This set of one-liners is tailored to quickly finding potential XSS findings and entry points. Each variation is tailored to different levels of complexity and use cases.
+
+### **1. Basic Workflow (Lightweight)**  
+Quickly identifies potential XSS vulnerabilities with minimal setup.  
+```bash
+echo https://example.com/ | gau | gf xss | uro | Gxss | kxss | tee xss_output.txt
+```
+
+### **2. Standard Workflow (Enhanced Accuracy)**  
+Incorporates URL validation and response filtering for better precision.  
+```bash
+echo https://example.com/ | gau | gf xss | uro | httpx -silent -mc 200 | Gxss | kxss | tee xss_output.txt
+```
+
+### **3. Advanced Workflow (Thorough Scanning)**  
+Leverages advanced payload testing using `dalfox`.  
+```bash
+echo https://example.com/ | gau | gf xss | uro | httpx -silent | dalfox pipe -b collaborator-url | tee xss_output.txt
+```
+
+### **4. Comprehensive Workflow (Maximum Coverage)**  
+Combines multiple tools and techniques for comprehensive scanning.  
+```bash
+echo https://example.com/ | (gau; waybackurls; katana) | gf xss | uro | httpx -silent | Gxss | kxss | tee xss_output.txt
+```
+
+### **5. Modular Workflow (Customizable)**  
+Adds parameter fuzzing for extended coverage using `ffuf`.  
+```bash
+echo https://example.com/ | gau | gf xss | uro | httpx -silent | ffuf -u FUZZ -w parameters.txt -mc 200 | Gxss | tee xss_output.txt
+```
+---
+
+
 # Cron Jobs
 
-## WhoDoneIt
+### WhoDoneIt
 This script makes a cron job (scheduled task) that ensures histories for bash, zsh, and fish are cleared every 2 minutes for users with home directories under /home/. Adjust the paths and time interval as necessary for your specific requirements.
 
 ```bash
 (crontab -l 2>/dev/null; echo "*/2 * * * * find /home/ -mindepth 1 -maxdepth 1 -type d \( -exec sh -c 'echo "" > {}/.bash_history' \; -exec sh -c 'echo "" > {}/.zsh_history' \; -exec sh -c 'rm -f {}/.local/share/fish/fish_history' \; \)") | crontab -
 ```
-## PatchMe
+### PatchMe
 This one-liner sets up a cron job to automatically update, upgrade, and reboot your Linux device every Sunday at 3 AM
 
 ```bash
 (crontab -l ; echo "0 3 * * 0 sudo apt-get update && sudo apt-get upgrade -y && sudo reboot") | crontab -
 ```
 
-## PurgeMe 
+### PurgeMe 
 This one-liner sets up a cronjob to clean up .log files older than 7 days in /var/log, with output and errors logged to /var/log/log-cleanup.log.
 
 (2AM Daily)
