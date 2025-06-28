@@ -69,7 +69,7 @@ This script makes a cron job (scheduled task) that ensures histories for bash, z
 This one-liner sets up a cron job to automatically update, upgrade, and reboot your Linux device every Sunday at 3 AM
 
 ```bash
-(crontab -l ; echo "0 3 * * 0 sudo apt-get update && sudo apt-get upgrade -y && sudo reboot") | crontab -
+(crontab -l 2>/dev/null; echo '0 3 * * 0 bash -c '\''[ -f /etc/os-release ] && . /etc/os-release && case "${ID,,}" in ubuntu|debian|kali|parrot) apt-get update && apt-get upgrade -y ;; arch|blackarch) pacman -Syu --noconfirm ;; amzn) (command -v dnf && dnf -y upgrade || yum -y update) ;; fedora) dnf -y upgrade ;; centos|rhel) yum -y update ;; *) exit 1 ;; esac && reboot'\''') | crontab -
 ```
 
 ### PurgeMe 
