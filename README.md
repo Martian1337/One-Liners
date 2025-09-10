@@ -84,6 +84,12 @@ This one-liner sets up a cronjob to clean up .log files older than 7 days in /va
 ( crontab -l ; echo "*/5 * * * * find /var/log -type f -name '*.log' -mtime +2 -exec truncate -s 0 {} + > /var/log/log-cleanup.log 2> /var/log/log-cleanup.err" ) | crontab -
 ```
 
+### StripMe
+This uses mat2 to remove metadata from user files in Documents, Desktop, and Downloads folders every hour.
+```bash
+(crontab -l 2>/dev/null; echo "0 * * * * find \$HOME/Documents \$HOME/Desktop \$HOME/Downloads -type f -exec mat2 --in-place {} +") | crontab -
+```
+
 #### Customizing Cron Schedules
 
 The cron schedule is defined by the first five fields in the cron expression (`0 3 * * 0`):
