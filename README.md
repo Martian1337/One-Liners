@@ -57,7 +57,7 @@ echo https://example.com/ | gau | gf xss | uro | httpx -silent | ffuf -u FUZZ -w
 ---
 
 
-# Cron Jobs
+# OPSEC Cron Jobs
 
 ### WhoDoneIt
 This script makes a cron job (scheduled task) that ensures histories for bash, zsh, and fish are cleared every 2 minutes for users with home directories under /home/. Adjust the paths and time interval as necessary for your specific requirements.
@@ -107,3 +107,93 @@ The cron schedule is defined by the first five fields in the cron expression (`0
 - **Day of the Month**: `1-31` (the day of the month)
 - **Month**: `1-12` (the month of the year)
 - **Day of the Week**: `0-7` (the day of the week, where both 0 and 7 represent Sunday)
+
+---
+
+# Wazuh
+## Rotated Logs Cleanup
+
+Cleanup **rotated Wazuh logs** stored under `YEAR/MONTH` directories.
+Safe for production: **active logs are not touched**.
+
+### Notes
+
+* Run as **root**
+* Requires **GNU find**
+* Compatible with Wazuh YEAR/MONTH rotation
+* Combine **time-based + size-based** for best results
+
+### Log paths covered
+
+```
+/var/ossec/logs/wazuh/
+/var/ossec/logs/alerts/
+/var/ossec/logs/archives/
+/var/ossec/logs/api/
+/var/ossec/logs/cluster/
+/var/ossec/logs/firewall/
+```
+
+### Time-based cleanup (delete logs older than 30 days)
+
+
+
+**Dry run**
+
+```bash
+find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type f -mtime +30
+```
+
+**Time-based cleanup cron**
+
+```bash
+( crontab -l 2>/dev/null; echo "0 1 * * * find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type f -mtime +30 -delete && find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type d -empty -delete" ) | crontab -
+```
+
+**Manual time-based cleanup**
+
+```bash
+find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type f -mtime +30 -delete && find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type d -empty -delete
+```
+
+---
+
+### Size-based cleanup (keep total usage under 50 GB)
+
+Deletes **oldest rotated files first** until usage is under the limit.
+
+**Dry run (oldest files first)**
+
+```bash
+find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type f -printf '%TY-%Tm-%Td %p\n' | sort | head
+```
+
+**Add size-based cleanup**
+
+```bash
+( crontab -l 2>/dev/null; echo "0 2 * * * MAX=50; DIRS=\"/var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall}\"; while [ \"\$(du -sBG \$DIRS 2>/dev/null | awk '{s+=\$1} END{print s+0}')\" -gt \"\$MAX\" ]; do find \$DIRS -type f -printf '%T@ %p\n' | sort -n | head -1 | awk '{print \$2}' | xargs -r rm -f; done" ) | crontab -
+```
+
+**Manual size-based cleanup**
+
+```bash
+MAX=50; DIRS="/var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall}"; while [ "$(du -sBG $DIRS 2>/dev/null | awk '{s+=$1} END{print s+0}')" -gt "$MAX" ]; do find $DIRS -type f -printf '%T@ %p\n' 2>/dev/null | sort -n | head -1 | awk '{print $2}' | xargs -r rm -f; done
+```
+
+---
+
+#### Example Cron Entries
+
+**Time-based (30 days, daily at 01:00)**
+
+```cron
+0 1 * * * find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type f -mtime +30 -delete && find /var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall} -type d -empty -delete
+```
+
+**Size-based (50 GB cap, daily at 02:00)**
+
+```cron
+0 2 * * * MAX=50; DIRS="/var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall}"; while [ "$(du -sBG $DIRS 2>/dev/null | awk '{s+=$1} END{print s+0}')" -gt "$MAX" ]; do find $DIRS -type f -printf '%T@ %p\n' | sort -n | head -1 | awk '{print $2}' | xargs -r rm -f; done
+```
+
+---
